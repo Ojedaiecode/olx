@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", async () => {
         try {
             // Coleta IP do visitante
-            const ipRes = await fetch("https://ipapi.co/json/");
+            const ipRes = await fetch("https://ipwho.is/");
             const ipData = await ipRes.json();
             const ip = ipData.ip;
             const geolocalizacao = `${ipData.city} - ${ipData.region}`;
