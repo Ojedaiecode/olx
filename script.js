@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", async () => {
         try {
             // Obter IP e geolocalização
-            const ipRes = await fetch("https://ipapi.co/json/");
+            const ipRes = await fetch("https://api64.ipify.org?format=json");
             const ipData = await ipRes.json();
 
             // Detectar tipo de aparelho
